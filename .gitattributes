@@ -1,0 +1,3 @@
+# LightGBM model files must keep LF line endings, never let git convert them
+models/*.txt binary
+*.arff -text

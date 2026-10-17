@@ -1,289 +1,171 @@
+# 📊 Bankruptcy Risk Predictor
 
+Predict whether a company will go bankrupt **1, 2, 3, 4 or 5 years ahead** from its financial ratios.
+The project uses LightGBM models trained on 43,405 financial statements of Polish companies, explains every
+prediction, and includes an interactive Streamlit app.
 
-# 📘 Bankruptcy Prediction System
-
-### **LightGBM Models • 15-Feature Horizons • Optimized Thresholds • SHAP Explainability • Streamlit App**
-
-This repository contains a complete end-to-end bankruptcy prediction system using:
-
-* **LightGBM Gradient Boosting Models**
-* **Top 15 Financial Attributes Per Prediction Horizon**
-* **Optimal Threshold Search to Maximize F1**
-* **Clean, interpretable SHAP visualizations**
-* **Interactive Streamlit Web App for real-time predictions**
-* **Saved `.pkl` models for deployment**
-
-The project is designed for **high F1-score**, **robust handling of imbalanced datasets**, and **clear interpretability** for practical financial use.
+📘 **New to the project? Read [docs/How_It_Works.pdf](docs/How_It_Works.pdf)**, a plain-English guide to the data,
+the model, the scoring and the app.
 
 ---
 
-# 🚀 Features
-
-### 🔹 **1. Top 15 Features Per Horizon**
-
-For each prediction horizon (1–5 years ahead), only the 15 most important financial attributes are used.
-This improves performance, reduces noise, and increases interpretability.
-
-### 🔹 **2. LightGBM With F1–Optimized Thresholding**
-
-Each horizon searches thresholds from **0.05 → 0.95** and selects the one maximizing **validation F1**.
-
-### 🔹 **3. SHAP Explainability**
-
-Global and local interpretability through:
-
-* SHAP Beeswarm Summary Plot
-* SHAP Bar Feature Importance Plot
-
-### 🔹 **4. Interactive Streamlit App**
-
-A user-friendly frontend where anyone can input financial attributes and get live bankruptcy predictions.
-
-### 🔹 **5. Production-ready `.pkl` Models**
-
-Easily loadable for APIs, dashboards, or batch scoring.
-
----
-
-# 📁 Repository Structure
-
-```
-├── Final_Master_Code.ipynb        # Full training + thresholding + SHAP notebook
-├── streamlit_app.py               # Streamlit interface (see below)
-├── models/
-│   ├── model_h1.pkl
-│   ├── model_h2.pkl
-│   ├── model_h3.pkl
-│   ├── model_h4.pkl
-│   └── model_h5.pkl
-├── data/                          # Original datasets 
-├── README.md                      # This file
-└── 
-```
-
----
-
-# 🧠 Methodology
-
-## **1️⃣ Data Preparation**
-
-For each prediction horizon **h = 1 to 5**:
-
-* Load dataset
-* Select top 15 features (`top_features[h]`)
-* Split into train / validation / test sets:
-
-  * **70% Train**
-  * **15% Validation**
-  * **15% Test**
-* Apply **median imputation** (no scaling to preserve tree performance)
-
----
-
-## **2️⃣ LightGBM Modeling**
-
-```python
-LGBMClassifier(
-    n_estimators=1200,
-    learning_rate=0.02,
-    num_leaves=64,
-    subsample=0.8,
-    colsample_bytree=0.8,
-    scale_pos_weight=pos_weight,   # imbalance correction
-    objective="binary",
-    random_state=42,
-    verbose=-1
-)
-```
-
-Why this works:
-
-* Trees do not need scaling
-* LightGBM handles missing values
-* `scale_pos_weight` handles class imbalance
-* Large number of boosting rounds + small learning rate improves stability
-
----
-
-## **3️⃣ Optimal Threshold Search (F1 Maximization)**
-
-Instead of default threshold = 0.50, each horizon tests:
-
-```
-threshold ∈ {0.05, 0.06, ..., 0.95}
-```
-
-The threshold that gives the **highest validation F1** is selected and applied to the test set.
-
-Stored in:
-
-```
-best_thresholds[horizon]
-```
-
----
-
-## **4️⃣ Model Saving**
-
-Each fitted model pipeline is saved as:
-
-```
-model_h{horizon}.pkl
-```
-
-Load using:
-
-```python
-import joblib
-model = joblib.load("model_h3.pkl")
-```
-
----
-
-## **5️⃣ SHAP Explainability**
-
-Two plots are generated per horizon:
-
-### ✔ SHAP Summary (Beeswarm)
-
-Shows how each feature pushes predictions positive or negative.
-
-### ✔ SHAP Bar Plot
-
-Shows the mean absolute importance of each feature.
-
-Example:
-
-```python
-explainer = shap.TreeExplainer(model)
-shap_values = explainer.shap_values(X_transformed)
-
-shap.summary_plot(shap_values, X_transformed, feature_names=feats)
-```
-
----
-
-# 🖥 Streamlit Application
-
-An interactive app is included for real-time prediction:
-
-```
-streamlit run streamlit_app.py
-```
-
-### Features:
-
-* Select prediction horizon (1–5 years)
-* Input values for top 15 financial attributes
-* View bankruptcy probability & classification
-* Clean, responsive UI
-
-### Example Code (Included in repo)
-
-```python
-import streamlit as st
-import pandas as pd
-import joblib
-
-st.set_page_config(page_title="Bankruptcy Prediction App", layout="centered")
-
-# Load models
-models = {
-    1: joblib.load("model_h1.pkl"),
-    2: joblib.load("model_h2.pkl"),
-    3: joblib.load("model_h3.pkl"),
-    4: joblib.load("model_h4.pkl"),
-    5: joblib.load("model_h5.pkl"),
-}
-
-# Top 15 features per horizon
-top_features = {
-    1: [...],
-    2: [...],
-    3: [...],
-    4: [...],
-    5: [...]
-}
-
-st.title("📊 Bankruptcy Prediction App")
-st.write("Enter company financial attributes to predict bankruptcy probability.")
-
-# Horizon selection
-horizon = st.selectbox("Select Prediction Horizon:", [1, 2, 3, 4, 5], index=0)
-model = models[horizon]
-features = top_features[horizon]
-
-input_data = {}
-for feat in features:
-    input_data[feat] = st.number_input(feat, value=0.0, format="%.6f")
-df_input = pd.DataFrame([input_data])
-
-if st.button("Predict Bankruptcy Risk"):
-    prob = model.predict_proba(df_input)[0][1]
-    pred = model.predict(df_input)[0]
-
-    st.subheader("🔍 Prediction Result")
-    st.write(f"**Bankruptcy Probability:** `{prob:.3f}`")
-
-    if pred == 1:
-        st.error("⚠ The model predicts: BANKRUPT")
-    else:
-        st.success("✅ SAFE / NOT BANKRUPT")
-```
-
----
-
-# 📊 Model Performance Summary
-
-Each horizon produces:
-
-| Metric       | Description                                      |
-| ------------ | ------------------------------------------------ |
-| **val_acc**  | Validation accuracy                              |
-| **val_f1**   | Validation F1-score (used for threshold picking) |
-| **val_auc**  | Validation ROC AUC                               |
-| **test_acc** | Test accuracy                                    |
-| **test_f1**  | Test F1-score                                    |
-| **test_auc** | Test ROC AUC                                     |
-| **best_thr** | Optimal decision threshold                       |
-
-SHAP plots help interpret which features drive bankruptcy risk across horizons.
-
----
-
-# 🔧 Installation
-
-### 1. Clone the repository
+## ✨ What it does
+
+* **Five models, one per horizon.** Each one predicts bankruptcy a fixed number of years ahead.
+* **20 key financial ratios per model**, chosen automatically from the 64 available.
+* **Honest probabilities.** Scores are calibrated, so "30%" means about 30 in 100 similar companies went bankrupt.
+* **A tuned decision threshold per horizon** that balances catching bankruptcies against false alarms (best F1).
+* **Explanations.** Every prediction shows which ratios pushed the risk up or down (SHAP values).
+* **Streamlit app** with single-company scoring, ready-made example companies, CSV batch scoring and a model guide.
+
+## 🚀 Quick start
 
 ```bash
-git clone https://github.com/<your-username>/<repo>.git
-cd <repo>
+git clone https://github.com/cooldudeayush/Bankruptcy-model-latest-.git
+cd Bankruptcy-model-latest-
+pip install -r requirements.txt
+streamlit run app.py
 ```
 
-### 2. Install required packages
+Python 3.11 or newer is required. The app opens at http://localhost:8501.
+
+## 📈 Results
+
+Scores on the 15% of companies held back for testing. These were never used for training, feature selection,
+tuning or picking the threshold. Brackets show 95% bootstrap intervals.
+
+| Years ahead | Threshold | Recall | Precision | F1 | ROC-AUC | PR-AUC |
+|---|---|---|---|---|---|---|
+| 1 | 0.33 | 0.74 | 0.72 | 0.730 [0.64–0.81] | 0.959 [0.93–0.98] | 0.815 [0.73–0.89] |
+| 2 | 0.29 | 0.64 | 0.68 | 0.658 [0.56–0.74] | 0.926 [0.89–0.96] | 0.717 [0.63–0.80] |
+| 3 | 0.27 | 0.54 | 0.62 | 0.576 [0.47–0.67] | 0.927 [0.89–0.96] | 0.634 [0.53–0.74] |
+| 4 | 0.24 | 0.60 | 0.56 | 0.581 [0.47–0.68] | 0.926 [0.89–0.96] | 0.668 [0.55–0.77] |
+| 5 | 0.35 | 0.73 | 0.83 | 0.779 [0.65–0.87] | 0.984 [0.97–0.99] | 0.852 [0.75–0.93] |
+
+*Recall* = share of bankrupt companies the model caught. *Precision* = share of alarms that were right.
+Only 4–7% of companies went bankrupt, so accuracy is not a useful score here: a model that always says
+"safe" would already be 95% accurate.
+
+### Compared with the original models (v1), on the same test companies
+
+| | v1 average | v2 average |
+|---|---|---|
+| PR-AUC | 0.694 | **0.737** (better on all 5 horizons) |
+| ROC-AUC | 0.930 | **0.944** (better or equal on all 5 horizons) |
+| F1 | 0.654 | **0.665** |
+
+![Old vs new](reports/figures/old_vs_new.png)
+
+Full details: [reports/metrics.md](reports/metrics.md).
+
+## 🔧 What changed in v2
+
+| Issue in v1 | Fix in v2 |
+|---|---|
+| Horizons were reversed: `1year.arff` was labelled "1 year ahead", but according to UCI it holds the status **after 5 years** | Horizons follow the UCI definition: 1 year ahead = `5year.arff` … 5 years ahead = `1year.arff` |
+| Top features were picked using all data, test rows included (data leakage) | Features are picked inside cross-validation on training data only |
+| Hand-set hyper-parameters (2000 trees, 128 leaves); `subsample` had no effect because `subsample_freq` was never set | Optuna searches 40 settings per horizon using 5-fold CV and early stopping |
+| Threshold picked on one small 15% validation split, so unstable (0.16–0.60) | Threshold picked on out-of-fold predictions over the full training set |
+| Probabilities were distorted by class weighting | Platt calibration turns scores into honest probabilities |
+| Median imputation hid the fact that missing values carry information | LightGBM handles missing values natively; the app lets you choose "unknown" (typical value) or "not reported" |
+| App ignored the tuned thresholds (always used 0.5) | App uses each horizon's threshold and shows the reasons for each prediction |
+| 82 MB of pickled scikit-learn pipelines, tied to one scikit-learn version | 5 MB of LightGBM text models, readable with any LightGBM 4.x |
+| Notebook only | Reproducible package, training CLI, tests, Dockerfile, deployment guide |
+
+## 🧠 How it works (short version)
+
+```
+financial ratios ─► pick the horizon's model ─► LightGBM (hundreds of small trees) ─► risk score
+     ─► calibration ─► probability ─► compare with threshold ─► verdict + top reasons
+```
+
+Training pipeline (`python -m bankruptcy.train`), run for each horizon:
+
+1. **Split:** 85% train / 15% test, stratified. Same seed as v1, so the test rows are identical.
+2. **Select features:** rank all 64 ratios by average LightGBM gain across 5 CV folds, then keep the top 20.
+   (In experiments, 20 ratios were as accurate as all 64.)
+3. **Tune:** Optuna, 40 trials, objective = cross-validated average precision.
+4. **Calibrate and set the threshold:** 5-fold × 3 repeats of out-of-fold predictions → Platt scaling → F1-optimal threshold.
+5. **Final fit** on the full training part, then **score the test part once**.
+
+## 📁 Project structure
+
+```
+├── app.py                    # Streamlit app
+├── bankruptcy/               # Python package
+│   ├── config.py             # paths, horizons, settings
+│   ├── data.py               # load .arff files, train/test split
+│   ├── features.py           # names and plain-English meanings of the 64 ratios
+│   ├── train.py              # training pipeline (python -m bankruptcy.train)
+│   ├── predict.py            # BankruptcyPredictor: probability, verdict, explanation
+│   └── report.py             # metrics tables and charts
+├── data/raw/                 # 1year.arff … 5year.arff (UCI dataset)
+├── models/                   # model_1y.txt … model_5y.txt + metadata.json
+├── reports/                  # metrics.md, metrics.json, figures/
+├── docs/
+│   ├── How_It_Works.pdf      # plain-English guide
+│   ├── make_explainer_pdf.py # rebuilds the guide from the current models
+│   └── DEPLOYMENT.md         # how to put the app online
+├── tests/                    # pytest: predictor + app
+├── Dockerfile, packages.txt  # deployment
+├── requirements.txt          # app dependencies
+└── requirements-train.txt    # + training, tests and PDF dependencies
+```
+
+## 🐍 Use the models in Python
+
+```python
+from bankruptcy.predict import BankruptcyPredictor
+
+predictor = BankruptcyPredictor()
+company = {"Attr27": 0.4, "Attr34": 0.9, "Attr21": 0.8}   # any ratios you have; the rest count as unknown
+
+predictor.predict(1, company)      # probability, threshold, prediction, risk level (1 year ahead)
+predictor.explain(1, company)      # each ratio's push on the risk score
+predictor.features(1)              # the 20 ratios the 1-year model uses
+```
+
+`predict` also accepts a DataFrame with one row per company.
+
+**Missing values:** by default, missing ratios are passed to the model as missing. In this dataset a value
+missing from the accounts is itself a warning sign. For example, 96% of 1-year-ahead companies with no
+sales-growth figure went bankrupt. If a value is simply unknown to you, pass `fill_missing=True` so the
+model uses a typical (median) value instead. The app does this by default.
+
+## 🔁 Retrain and test
 
 ```bash
-Pandas
-Numpy
-arff (to read the data)
-sklearn
-shap
-joblib
-
-
+pip install -r requirements-train.txt
+python -m bankruptcy.train          # ~15-20 min: writes models/ and reports/
+pytest                              # 11 tests: predictor + Streamlit app
+python docs/make_explainer_pdf.py   # refresh the PDF guide with the new numbers
 ```
 
-### 3. Run Streamlit App
+## 🌍 Deployment
 
-```bash
-streamlit run streamlit_app.py
-```
+The app can be deployed for free on Streamlit Community Cloud in about 5 minutes. Docker, Hugging Face Spaces,
+Render and Cloud Run options are also covered. See **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**.
 
----
+## 📊 Dataset
 
-=
-# 📬 Contact
+[Polish Companies Bankruptcy](https://archive.ics.uci.edu/dataset/365/polish+companies+bankruptcy+data), UCI Machine
+Learning Repository (Tomczak, 2016), from the EMIS database. Bankrupt companies were analysed over 2000–2012 and
+operating companies over 2007–2013. Each row is one company's financial statement: 64 ratios plus a bankrupt / not
+bankrupt label.
 
-Feel free to reach out to Subhojit Sapui, Ayush Ranjan , Aditi Pandey regarding this project.
+| Years ahead | File | Companies | Bankrupt |
+|---|---|---|---|
+| 1 | 5year.arff | 5,910 | 410 |
+| 2 | 4year.arff | 9,792 | 515 |
+| 3 | 3year.arff | 10,503 | 495 |
+| 4 | 2year.arff | 10,173 | 400 |
+| 5 | 1year.arff | 7,027 | 271 |
 
+> Note: the same companies can appear in several files (different years), so the files are modelled separately
+> rather than pooled. Pooling them made cross-validation scores look much better than they really are.
 
+> This tool is for education and research. It is not financial advice.
+
+## 📬 Contact
+
+Feel free to reach out to Subhojit Sapui, Ayush Ranjan, or Aditi Pandey regarding this project.

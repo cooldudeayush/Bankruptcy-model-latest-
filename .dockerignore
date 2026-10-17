@@ -1,0 +1,9 @@
+.git
+data
+tests
+docs
+reports/predictions.json
+__pycache__
+*.pyc
+.venv
+venv

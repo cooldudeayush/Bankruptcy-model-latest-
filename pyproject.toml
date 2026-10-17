@@ -1,0 +1,10 @@
+[project]
+name = "bankruptcy-prediction-model"
+version = "2.0.0"
+description = "Predict company bankruptcy 1-5 years ahead with LightGBM, with explanations and a Streamlit app"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning", "ignore::UserWarning"]

@@ -1,0 +1,12 @@
+# Extra dependencies to retrain the models and run the tests:
+#   pip install -r requirements-train.txt
+-r requirements.txt
+scikit-learn==1.7.0
+scipy==1.17.1
+optuna==5.0.0
+matplotlib==3.11.2
+joblib==1.6.0
+pytest==9.1.1
+
+# PDF guide (docs/make_explainer_pdf.py)
+reportlab==5.0.1

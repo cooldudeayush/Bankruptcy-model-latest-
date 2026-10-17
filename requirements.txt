@@ -1,0 +1,7 @@
+# Runtime dependencies for the Streamlit app (this is what a deployment installs).
+# Models are stored as LightGBM text files, so no pickle / scikit-learn version lock is needed to load them.
+streamlit==1.66.0
+lightgbm==4.7.0
+pandas==3.0.6
+numpy==2.4.6
+altair==6.3.0
